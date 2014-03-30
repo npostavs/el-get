@@ -43,7 +43,7 @@
            (git       (or (executable-find "git")
                           (error "Unable to find `git'")))
            (url       (or (bound-and-true-p el-get-git-install-url)
-                          "https://github.com/dimitri/el-get.git"))
+                          "https://github.com/npostavs/el-get.git"))
            (default-directory el-get-root)
            (process-connection-type nil)   ; pipe, no pty (--no-progress)
 
@@ -58,26 +58,12 @@
       (unless (zerop status)
         (error "Couldn't clone el-get from the Git repository: %s" url))
 
-      ;; switch branch if we have to
-      (let* ((branch (cond
-                      ;; Check if a specific branch is requested
-                      ((bound-and-true-p el-get-install-branch))
-                      ;; Check if master branch is requested
-                      ((boundp 'el-get-master-branch) "master")
-                      ;; Read the default branch from the el-get recipe
-                      ((plist-get (with-temp-buffer
-                                    (insert-file-contents-literally
-                                     (expand-file-name "recipes/el-get.rcp" pdir))
-                                    (read (current-buffer)))
-                                  :branch))
-                      ;; As a last resort, use the master branch
-                      ("master")))
+      ;; switch branch, we have to
+      (let* ((branch "current")
              (remote-branch (format "origin/%s" branch))
              (default-directory pdir)
              (bstatus
-              (if (string-equal branch "master")
-                  0
-                (call-process git nil (list buf t) t "checkout" "-t" remote-branch))))
+              (call-process git nil (list buf t) t "checkout" remote-branch)))
         (unless (zerop bstatus)
           (error "Couldn't `git checkout -t %s`" branch)))
 
@@ -87,10 +73,7 @@
       (let ((el-get-default-process-sync t) ; force sync operations for installer
             (el-get-verbose t))             ; let's see it all
         (el-get-post-install "el-get"))
-      (unless (boundp 'el-get-install-skip-emacswiki-recipes)
-        (condition-case err
-            (el-get-emacswiki-build-local-recipes)
-          (error (display-warning 'el-get (error-message-string err)))))
+      (ignore #'el-get-emacswiki-build-local-recipes) ; skip this, it's slow
       (with-current-buffer buf
         (goto-char (point-max))
         (insert "\nCongrats, el-get is installed and ready to serve!")))))
