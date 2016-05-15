@@ -1,6 +1,8 @@
 (require 'el-get)
 (require 'ert nil t)
 
+(el-get-register-method-alias :test :builtin)
+
 (eval-when-compile
   (require 'cl)
   (unless (featurep 'ert)
@@ -30,6 +32,7 @@ error.
 
 Following variables are bound to temporal values:
 * `user-emacs-directory'
+* `load-path'
 * `el-get-dir'
 * `el-get-status-file'
 * `el-get-status-cache'
@@ -37,6 +40,7 @@ Following variables are bound to temporal values:
   (declare (debug t))
   `(let* ((user-emacs-directory
            (make-temp-file "emacs.d.el-get-testing" 'dir "/"))
+          (load-path load-path)
           (el-get-dir (mapconcat #'file-name-as-directory
                                  `(,user-emacs-directory "el-get") ""))
           (el-get-status-file (concat el-get-dir ".status.el"))
@@ -104,6 +108,71 @@ Following variables are bound to temporal values:
            (should-not (file-exists-p pkg-destination)))
        (when (featurep pkg)
          (unload-feature pkg))))))
+
+(ert-deftest el-get-update-load-path ()
+  "Check the `load-path' is updated."
+  (el-get-with-temp-home
+   (let* ((recipe-a (list :name 'a :type 'test :compile nil
+                          :non-updatable 1
+                          :build '(progn (make-directory "test-load-path1" t) nil)
+                          :load-path "test-load-path1"))
+          (el-get-sources (list recipe-a))
+          (el-get-default-process-sync t))
+     (el-get 'sync 'a)
+     (should (member (expand-file-name
+                      "test-load-path1" (el-get-package-directory 'a))
+                     load-path))
+     (plist-put recipe-a :load-path "test-load-path2")
+     (plist-put recipe-a :build '(progn (make-directory "test-load-path2" t) nil))
+     (el-get-update 'a)
+     (should (member (expand-file-name
+                      "test-load-path2" (el-get-package-directory 'a))
+                     load-path))
+     (plist-put recipe-a :load-path "test-load-path3")
+     (plist-put recipe-a :non-updatable 3) ; Needs reinstall to change.
+     (plist-put recipe-a :build '(progn (make-directory "test-load-path3" t) nil))
+     (el-get-update 'a)
+     (should (member (expand-file-name
+                      "test-load-path3" (el-get-package-directory 'a))
+                     load-path)))))
+
+(ert-deftest el-get-update-rcp-file-load-path ()
+  "Check the `load-path' is updated."
+  :expected-result :failed
+  (el-get-with-temp-home
+   (let* ((rcpdir (expand-file-name "~/.emacs.d/el-get-user-recipes/"))
+          (el-get-recipe-path (cons rcpdir el-get-recipe-path))
+          (recipe-a (list :name 'a :type 'test :compile nil
+                          :non-updatable 1
+                          :build '(progn (make-directory "test-load-path1" t) nil)
+                          :load-path "test-load-path1"))
+          (el-get-default-process-sync t))
+     (make-directory rcpdir t)
+     (with-temp-file (expand-file-name "a.rcp" rcpdir)
+       (pp recipe-a (current-buffer)))
+     (el-get 'sync 'a)
+     (should (member (expand-file-name
+                      "test-load-path1" (el-get-package-directory 'a))
+                     load-path))
+
+     (plist-put recipe-a :load-path "test-load-path2")
+     (plist-put recipe-a :build '(progn (make-directory "test-load-path2" t) nil))
+     (with-temp-file (expand-file-name "a.rcp" rcpdir)
+       (pp recipe-a (current-buffer)))
+     (el-get-update 'a)
+     (should (member (expand-file-name
+                      "test-load-path2" (el-get-package-directory 'a))
+                     load-path))
+
+     (plist-put recipe-a :load-path "test-load-path3")
+     (plist-put recipe-a :non-updatable 3) ; Needs reinstall to change.
+     (plist-put recipe-a :build '(progn (make-directory "test-load-path3" t) nil))
+     (with-temp-file (expand-file-name "a.rcp" rcpdir)
+       (pp recipe-a (current-buffer)))
+     (el-get-update 'a)
+     (should (member (expand-file-name
+                      "test-load-path3" (el-get-package-directory 'a))
+                     load-path)))))
 
 (ert-deftest el-get-elpa-feature ()
   "`:features' option should work for ELPA type recipe."
