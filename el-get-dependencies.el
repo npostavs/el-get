@@ -50,6 +50,29 @@ attention to case differences."
     (append (list (append (list package) alldeps))
             (loop for p in pdeps append (el-get-dependencies-graph p)))))
 
+(defun el-get-reverse-dependencies (package &optional print)
+  "Return a list of installed packages which depend on PACKAGE.
+PACKAGE must be a symbol, naming an installed package.
+If PRINT is non-nil, show the result with `message'."
+  (interactive (list (intern (el-get-read-package-with-status
+                              "Check reverse depends of"
+                              "installed" "required"))
+                     t))
+  (let ((rdeps (loop for p in (mapcar
+                               #'intern (el-get-list-package-names-with-status
+                                         "installed" "required"))
+                     when (and (not (eq p package))
+                               (memq package (el-get-dependencies p)))
+                     collect p)))
+    (prog1 rdeps
+      (when print
+        (message (case (length rdeps)
+                   (0 "No packages depending on %s%s")
+                   (1 "1 package depending on %s: %s")
+                   (t (format "%d packages depending on %%s: %%s"
+                              (length rdeps))))
+                 package (mapconcat #'symbol-name rdeps " "))))))
+
 ;;
 ;; topological sort, see
 ;; http://rosettacode.org/wiki/Topological_sort#Common_Lisp
