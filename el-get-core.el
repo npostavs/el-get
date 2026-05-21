@@ -421,6 +421,7 @@ fail."
 
 (defun el-get-package-features (pdir)
   "Return a list of features provided by files in PDIR."
+  (declare (obsolete "No longer used" "2026?"))
   (cl-loop with regexp = (format "^%s" (regexp-quote (file-name-as-directory (expand-file-name pdir))))
            for (f . l) in load-history
            when (and (stringp f) (string-match-p regexp (file-truename f)))

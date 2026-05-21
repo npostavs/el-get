@@ -13,6 +13,7 @@
 ;;     Please see the README.md file from the same distribution
 
 (require 'cl-lib)
+(require 'loadhist)
 (require 'el-get-core)
 (require 'el-get-recipes)
 (require 'el-get-status)
@@ -73,6 +74,21 @@ If PRINT is non-nil, show the result with `message'."
                    (t (format "%d packages depending on %%s: %%s"
                               (length rdeps))))
                  package (mapconcat #'symbol-name rdeps " "))))))
+
+(defun el-get-reverse-dependent-features (files)
+  "Return a list of features that depend on FILES (recursively).
+Uses `load-history' via `file-dependents' and `file-provides'."
+  (let* ((old-deps (make-hash-table :test #'equal))
+         (new-deps (apply #'nconc (mapcar #'file-dependents files)))
+         dep dep-list)
+    (while (setq dep (pop new-deps))
+      (unless (gethash dep old-deps)
+        (puthash dep t old-deps)
+        (push dep dep-list)
+        (setq new-deps
+              (append (file-dependents dep) new-deps))))
+    (mapcar (lambda (d) (car (file-provides (file-name-base d))))
+            dep-list)))
 
 ;;
 ;; topological sort, see

@@ -586,11 +586,9 @@ PACKAGE may be either a string or the corresponding symbol."
   (el-get-with-status-sources ()
     (let* ((all-features features)
            (pdir (el-get-package-directory package))
-           (package-features (delete-dups
-                              (el-get-package-features pdir)))
            (package-files (el-get-package-files pdir))
-           (other-features
-            (cl-remove-if (lambda (x) (memq x package-features)) all-features)))
+           (package-features (el-get-reverse-dependent-features
+                              package-files)))
       (unwind-protect
           (progn
             (dolist (feat package-features)
@@ -609,10 +607,7 @@ PACKAGE may be either a string or the corresponding symbol."
                                        file package (cdr e)))))
             ;; Redo package initialization
             (el-get-init package)
-            ;; Reload all features provided by the package. This ensures
-            ;; that autoloaded packages (which normally don't load
-            ;; anything until one of their entry points is called) are
-            ;; forced to reload immediately if they were already loaded.
+            ;; Reload all features that we unloaded.
             (cl-loop for f in package-features
                      do (require f nil 'noerror)))))))
 
