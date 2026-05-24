@@ -586,27 +586,17 @@ PACKAGE may be either a string or the corresponding symbol."
   (el-get-with-status-sources ()
     (let* ((all-features features)
            (pdir (el-get-package-directory package))
-           (package-files (el-get-package-files pdir))
            (package-features (el-get-reverse-dependent-features
-                              package-files)))
+                              (el-get-package-files pdir))))
       (unwind-protect
           (progn
             (dolist (feat package-features)
               ;; force unloading because we don't go in dep order
               (unload-feature feat t))
-            ;; Reload all loaded files in package dir if they still
-            ;; exist.
-            (cl-loop for file in package-files
-                     ;; We convert errors to warnings here, because some
-                     ;; files don't like being loaded more than once in a
-                     ;; session. Example: "cedet-remove-builtin.el" from
-                     ;; CEDET.
-                     do (condition-case e
-                            (load file 'noerror)
-                          (error (warn "Error while reloading file %s in package %s: %S\n\n This package may require a restart of emacs to complete the update process."
-                                       file package (cdr e)))))
-            ;; Redo package initialization
-            (el-get-init package)
+            ;; Redo package initialization (but if we unloaded el-get,
+            ;; `el-get-init' is not defined).
+            (unless (equal package "el-get")
+              (el-get-init package))
             ;; Reload all features that we unloaded.
             (cl-loop for f in package-features
                      do (require f nil 'noerror)))))))

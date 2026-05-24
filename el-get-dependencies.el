@@ -87,8 +87,11 @@ Uses `load-history' via `file-dependents' and `file-provides'."
         (push dep dep-list)
         (setq new-deps
               (append (file-dependents dep) new-deps))))
-    (mapcar (lambda (d) (car (file-provides (file-name-base d))))
-            dep-list)))
+    ;; Files like init.el which don't `provide' anything could require
+    ;; a package, so we must filter out `nil' results here.
+    (delq nil
+          (mapcar (lambda (d) (car (file-provides (file-name-base d))))
+                  dep-list))))
 
 ;;
 ;; topological sort, see
