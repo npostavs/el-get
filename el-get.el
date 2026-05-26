@@ -363,7 +363,9 @@ called by `el-get' (usually at startup) for each installed package."
                  (memq psym (bound-and-true-p package-activated-list))
                  (not (memq psym el-get-activated-list))
                  (package-installed-p psym)
-                 (not (eq 'elpa (el-get-package-method package))))
+                 (or (not (eq 'elpa (el-get-package-method package)))
+                     (and (eq 'builtin (el-get-package-method package))
+                          (package-built-in-p package))))
         (lwarn 'el-get :warning
                "The package `%s' has already been loaded by
 package.el, attempting to load el-get version instead. To avoid
